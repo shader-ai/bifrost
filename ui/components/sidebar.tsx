@@ -405,7 +405,27 @@ const SidebarItemView = ({
               {item.title}
             </div>
             {item.subItems?.map((subItem) => {
-              const href = getSidebarItemHref(subItem);
+              const baseHref = getSidebarItemHref(subItem);
+              const href = (() => {
+                if (
+                  TimeFilterPages.has(subItem.url) &&
+                  TimeFilterPages.has(pathname)
+                ) {
+                  const currentParams = new URLSearchParams(search);
+                  const startTime = currentParams.get("start_time");
+                  const endTime = currentParams.get("end_time");
+                  const period = currentParams.get("period");
+                  if ((startTime && endTime) || period) {
+                    const params = new URLSearchParams();
+                    if (startTime) params.set("start_time", startTime);
+                    if (endTime) params.set("end_time", endTime);
+                    if (period) params.set("period", period);
+                    const sep = baseHref.includes("?") ? "&" : "?";
+                    return `${baseHref}${sep}${params.toString()}`;
+                  }
+                }
+                return baseHref;
+              })();
               const isSubItemActive = subItem.queryParam
                 ? pathname === subItem.url
                 : isRouteMatch(subItem.url);
