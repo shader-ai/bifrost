@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  bifrost:
+    image: ${BIFROST_IMAGE:-maximhq/bifrost:latest}
+    container_name: urai_bifrost
+    restart: unless-stopped
+    ports:
+      - "${BIFROST_PORT:-8080}:8080"
+    volumes:
+      - ./config.json:/app/config.json:ro

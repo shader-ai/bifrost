@@ -1,0 +1,9 @@
+{
+  "auth_config": {
+    "is_enabled": true,
+    "disable_auth_on_inference": true
+  },
+  "client": {
+    "enforce_auth_on_inference": false
+  }
+}
