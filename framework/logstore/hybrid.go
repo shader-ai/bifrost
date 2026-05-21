@@ -1036,6 +1036,10 @@ func (h *HybridLogStore) GetAvailableMCPVirtualKeys(ctx context.Context, limit i
 	return h.inner.GetAvailableMCPVirtualKeys(ctx, limit, query)
 }
 
+func (h *HybridLogStore) GetDistinctMCPKeyPairs(ctx context.Context, idCol, nameCol string, limit int, query string) ([]KeyPairResult, error) {
+	return h.inner.GetDistinctMCPKeyPairs(ctx, idCol, nameCol, limit, query)
+}
+
 // Async Job methods — delegated directly.
 
 func (h *HybridLogStore) CreateAsyncJob(ctx context.Context, job *AsyncJob) error {
