@@ -238,11 +238,12 @@ func ConvertToBifrostContext(ctx *fasthttp.RequestCtx, store HandlerStore) (*sch
 		"transfer-encoding":   true,
 
 		// prevent auth/key overrides via x-bf-eh-*
-		"x-api-key":       true,
-		"x-goog-api-key":  true,
-		"x-bf-api-key":    true,
-		"x-bf-api-key-id": true,
-		"x-bf-vk":         true,
+		"x-api-key":          true,
+		"x-goog-api-key":     true,
+		"x-bf-api-key":       true,
+		"x-bf-api-key-id":    true,
+		"x-bf-vk":            true,
+		"x-bf-provider-key":  true,
 	}
 
 	// Debug: Log header matcher state
@@ -352,6 +353,12 @@ func ConvertToBifrostContext(ctx *fasthttp.RequestCtx, store HandlerStore) (*sch
 		if keyStr == "x-bf-api-key-id" {
 			if keyID := strings.TrimSpace(string(value)); keyID != "" {
 				bifrostCtx.SetValue(schemas.BifrostContextKeyAPIKeyID, keyID)
+			}
+			return true
+		}
+		if keyStr == "x-bf-provider-key" {
+			if rawKey := strings.TrimSpace(string(value)); rawKey != "" {
+				bifrostCtx.SetValue(schemas.BifrostContextKeyPassthroughProviderKey, rawKey)
 			}
 			return true
 		}

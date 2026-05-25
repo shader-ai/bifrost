@@ -1,9 +1,32 @@
 {
+  "$schema": "https://www.getbifrost.ai/schema",
   "auth_config": {
-    "is_enabled": true,
-    "disable_auth_on_inference": true
+    "is_enabled": false
   },
-  "client": {
-    "enforce_auth_on_inference": false
+  "providers": {
+    "openai": {
+      "keys": []
+    },
+    "anthropic": {
+      "keys": []
+    },
+    "gemini": {
+      "keys": []
+    },
+    "xai": {
+      "keys": []
+    },
+    "azure": {
+      "keys": []
+    },
+    "bedrock": {
+      "keys": []
+    },
+    "cohere": {
+      "keys": []
+    },
+    "mistral": {
+      "keys": []
+    }
   }
 }

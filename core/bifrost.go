@@ -7149,6 +7149,16 @@ func (bifrost *Bifrost) selectKeyFromProviderForModelWithPool(ctx *schemas.Bifro
 		return []schemas.Key{}, false, nil
 	}
 
+	// Passthrough key: caller (e.g. URAI) supplies the raw provider API key per-request.
+	// Skip the key store entirely and return a synthetic single-key pool.
+	if rawKey, ok := ctx.Value(schemas.BifrostContextKeyPassthroughProviderKey).(string); ok && rawKey != "" {
+		synthetic := schemas.Key{
+			Value:  schemas.EnvVar{Val: rawKey},
+			Models: schemas.WhiteList{"*"},
+		}
+		return []schemas.Key{synthetic}, false, nil
+	}
+
 	// Get keys for provider
 	keys, err := bifrost.account.GetKeysForProvider(ctx, providerKey)
 	if err != nil {

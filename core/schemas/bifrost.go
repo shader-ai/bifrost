@@ -301,6 +301,7 @@ const (
 	IsAPIKeyAuthContextKey                               BifrostContextKey = "is_api_key_auth"
 	IsLocalAdminContextKey                               BifrostContextKey = "is_local_admin"                // bool (set by auth middleware when password-based auth succeeds - local admin user bypasses RBAC)
 	BifrostContextKeyPassthroughOverridesPresent         BifrostContextKey = "passthrough_overrides_present" // bool (set by HTTP transport) - passthrough raw request requested
+	BifrostContextKeyPassthroughProviderKey              BifrostContextKey = "x-bf-provider-key"             // string (raw provider API key supplied per-request by URAI; bypasses the key store)
 	BifrostContextKeyConnectionClosed                    BifrostContextKey = "connection_closed"
 )
 

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://www.getbifrost.ai/schema",
+  "providers": {
+    "openai": {
+      "keys": []
+    },
+    "anthropic": {
+      "keys": []
+    },
+    "gemini": {
+      "keys": []
+    },
+    "xai": {
+      "keys": []
+    },
+    "azure": {
+      "keys": []
+    },
+    "bedrock": {
+      "keys": []
+    },
+    "cohere": {
+      "keys": []
+    },
+    "mistral": {
+      "keys": []
+    }
+  }
+}
