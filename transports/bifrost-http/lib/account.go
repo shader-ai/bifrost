@@ -4,6 +4,7 @@ package lib
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/maximhq/bifrost/core/schemas"
@@ -35,12 +36,24 @@ func (baseAccount *BaseAccount) GetConfiguredProviders() ([]schemas.ModelProvide
 // GetKeysForProvider returns the API keys configured for a specific provider.
 // Keys are already processed (environment variables resolved) by the store.
 // Implements the Account interface.
+//
+// In multi-tenant (passthrough) mode the actual API key arrives per-request via the
+// x-bf-provider-key header and is handled before this function's result is consulted.
+// Returning an empty slice (rather than an error) for an unregistered provider lets
+// Bifrost reach that shortcut path without requiring every provider to be pre-declared
+// in config.json.
 func (baseAccount *BaseAccount) GetKeysForProvider(ctx context.Context, providerKey schemas.ModelProvider) ([]schemas.Key, error) {
 	if baseAccount.store == nil {
 		return nil, fmt.Errorf("store not initialized")
 	}
 	config, err := baseAccount.store.GetProviderConfigRaw(providerKey)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			// Provider not declared in config — return empty key list.
+			// The passthrough shortcut in selectKeyFromProviderForModelWithPool will
+			// use the per-request x-bf-provider-key header instead.
+			return []schemas.Key{}, nil
+		}
 		return nil, err
 	}
 	keys := config.Keys
@@ -70,12 +83,26 @@ func (baseAccount *BaseAccount) GetKeysForProvider(ctx context.Context, provider
 // GetConfigForProvider returns the complete configuration for a specific provider.
 // Configuration is already fully processed (environment variables, key configs) by the store.
 // Implements the Account interface.
+//
+// If the provider is not declared in config.json (e.g. a new or unknown provider
+// encountered in multi-tenant / passthrough mode) this returns a zero-config with
+// Bifrost defaults rather than an error. This allows Bifrost to lazily spin up a
+// request queue for any provider on first use without requiring it to be pre-listed.
 func (baseAccount *BaseAccount) GetConfigForProvider(providerKey schemas.ModelProvider) (*schemas.ProviderConfig, error) {
 	if baseAccount.store == nil {
 		return nil, fmt.Errorf("store not initialized")
 	}
 	config, err := baseAccount.store.GetProviderConfigRaw(providerKey)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			// Provider not in config — return a default config so Bifrost can still
+			// create a request queue. The actual API key comes per-request via
+			// x-bf-provider-key (passthrough mode).
+			return &schemas.ProviderConfig{
+				NetworkConfig:            schemas.DefaultNetworkConfig,
+				ConcurrencyAndBufferSize: schemas.DefaultConcurrencyAndBufferSize,
+			}, nil
+		}
 		return nil, err
 	}
 	providerConfig := &schemas.ProviderConfig{}
