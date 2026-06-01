@@ -23,20 +23,23 @@ RUN apk upgrade --no-cache && \
 
 ENV CGO_ENABLED=1 GOOS=linux
 
-COPY transports/go.mod transports/go.sum ./
+# Build the whole bifrost workspace from source so local patches in core/,
+# framework/, and plugins/ are compiled in. transports/go.mod pins published
+# proxy versions of those modules (which predate the patches); the repo-root
+# go.work redirects them to the local source, so the workspace must stay on
+# (do NOT set GOWORK=off here).
+COPY . .
 RUN go mod download
 
-COPY transports/ ./
-COPY --from=ui-builder /app/out ./bifrost-http/ui
+COPY --from=ui-builder /app/out ./transports/bifrost-http/ui
 
-ENV GOWORK=off
 ARG VERSION=urai
 RUN go build \
     -ldflags="-w -s -X main.Version=v${VERSION} -extldflags '-static'" \
     -a -trimpath \
     -tags "sqlite_static" \
     -o /app/main \
-    ./bifrost-http
+    ./transports/bifrost-http
 
 RUN test -f /app/main || (echo "Build failed" && exit 1)
 
@@ -48,7 +51,7 @@ RUN apk upgrade --no-cache && \
     apk add --no-cache musl libgcc ca-certificates wget zlib
 
 COPY --from=builder /app/main .
-COPY --from=builder /app/docker-entrypoint.sh .
+COPY --from=builder /app/transports/docker-entrypoint.sh .
 
 # Bake in the urai-specific config (no providers declared; all keys are
 # supplied per-request via x-bf-provider-key by the URAI backend).
