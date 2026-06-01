@@ -27,10 +27,9 @@ ENV CGO_ENABLED=1 GOOS=linux
 # framework/, and plugins/ are compiled in. transports/go.mod pins published
 # proxy versions of those modules (which predate the patches); the repo-root
 # go.work redirects them to the local source, so the workspace must stay on
-# (do NOT set GOWORK=off here).
+# (do NOT set GOWORK=off here). go build fetches modules on demand; a
+# standalone `go mod download` errors at the workspace root (no main module).
 COPY . .
-RUN go mod download
-
 COPY --from=ui-builder /app/out ./transports/bifrost-http/ui
 
 ARG VERSION=urai
