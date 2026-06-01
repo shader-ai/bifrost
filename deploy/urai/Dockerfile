@@ -23,14 +23,18 @@ RUN apk upgrade --no-cache && \
 
 ENV CGO_ENABLED=1 GOOS=linux
 
-# Build the whole bifrost workspace from source so local patches in core/,
-# framework/, and plugins/ are compiled in. transports/go.mod pins published
-# proxy versions of those modules (which predate the patches); the repo-root
-# go.work redirects them to the local source, so the workspace must stay on
-# (do NOT set GOWORK=off here). go build fetches modules on demand; a
-# standalone `go mod download` errors at the workspace root (no main module).
+# Build bifrost-http from local source so the urai patches in core/,
+# framework/, and plugins/ are compiled in, instead of the published proxy
+# versions pinned in transports/go.mod (which predate the patches).
 COPY . .
 COPY --from=ui-builder /app/out ./transports/bifrost-http/ui
+
+# The dev go.work is gitignored and excluded by .dockerignore (local-only), so
+# recreate an equivalent Go workspace here: core, framework, transports, cli
+# and every plugin. go.work.sum is unnecessary -- each module's own go.sum
+# covers external dependency checksums; go build fetches them on demand.
+RUN go work init && \
+    go work use ./core ./framework ./transports ./cli ./plugins/*
 
 ARG VERSION=urai
 RUN go build \
