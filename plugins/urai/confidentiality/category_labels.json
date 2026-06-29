@@ -1,0 +1,22 @@
+[
+  "Authentication Data",
+  "Behavioral Data",
+  "Biometric Data",
+  "Cloud & DevOps",
+  "Communication Data",
+  "Customer Data",
+  "Educational Records",
+  "Geolocation Data",
+  "HR & Employee Data",
+  "Intellectual Property",
+  "Internal Business",
+  "Legal & Compliance",
+  "Media & Sensitive Content",
+  "PCI (Financial)",
+  "PHI (Health)",
+  "PII (Personal)",
+  "Public/General",
+  "Research & Confidential",
+  "Secrets & Credentials",
+  "Security & Infrastructure"
+]

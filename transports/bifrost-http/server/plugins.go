@@ -14,6 +14,7 @@ import (
 	"github.com/maximhq/bifrost/plugins/prompts"
 	"github.com/maximhq/bifrost/plugins/semanticcache"
 	"github.com/maximhq/bifrost/plugins/telemetry"
+	"github.com/maximhq/bifrost/plugins/urai"
 	"github.com/maximhq/bifrost/transports/bifrost-http/handlers"
 	"github.com/maximhq/bifrost/transports/bifrost-http/lib"
 )
@@ -50,6 +51,9 @@ func InstantiatePlugin(ctx context.Context, name string, path *string, pluginCon
 // loadBuiltinPlugin instantiates a built-in plugin by name
 func loadBuiltinPlugin(ctx context.Context, name string, pluginConfig any, bifrostConfig *lib.Config) (schemas.BasePlugin, error) {
 	switch name {
+	case urai.PluginName:
+		return urai.Init(logger)
+
 	case telemetry.PluginName:
 		telConfig := &telemetry.Config{
 			CustomLabels: bifrostConfig.ClientConfig.PrometheusLabels,
@@ -164,6 +168,11 @@ func (s *BifrostHTTPServer) getPluginConfig(name string) *schemas.PluginConfig {
 // loadBuiltinPlugins loads required built-in plugins in specific order
 func (s *BifrostHTTPServer) loadBuiltinPlugins(ctx context.Context) error {
 	builtinPlacement := schemas.Ptr(schemas.PluginPlacementBuiltin)
+	preBuiltinPlacement := schemas.Ptr(schemas.PluginPlacementPreBuiltin)
+
+	// 0. URAI (pre-builtin, order 0 — authenticates before governance/telemetry).
+	s.registerPluginWithStatus(ctx, urai.PluginName, nil, nil, false)
+	s.Config.SetPluginOrderInfo(urai.PluginName, preBuiltinPlacement, schemas.Ptr(0))
 
 	// 1. Telemetry (always first - tracks everything).
 	// Default-on: absent PluginConfig entry is treated as enabled, matching pre-#3269 behavior

@@ -44,6 +44,7 @@ import (
 	"github.com/maximhq/bifrost/plugins/prompts"
 	"github.com/maximhq/bifrost/plugins/semanticcache"
 	"github.com/maximhq/bifrost/plugins/telemetry"
+	"github.com/maximhq/bifrost/plugins/urai"
 	"gorm.io/gorm"
 )
 
@@ -114,6 +115,7 @@ func getWeight(w *float64) float64 {
 // BuiltinPluginNames is the canonical list of built-in plugin names.
 // It is the single source of truth — update here when adding or removing a built-in plugin.
 var builtinPluginNames = []string{
+	urai.PluginName,
 	telemetry.PluginName,
 	prompts.PluginName,
 	logging.PluginName,

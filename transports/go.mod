@@ -22,6 +22,7 @@ require (
 	github.com/maximhq/bifrost/plugins/prompts v1.0.10
 	github.com/maximhq/bifrost/plugins/semanticcache v1.5.10
 	github.com/maximhq/bifrost/plugins/telemetry v1.5.10
+	github.com/maximhq/bifrost/plugins/urai v0.0.0-00010101000000-000000000000
 	github.com/pion/rtcp v1.2.16
 	github.com/pion/webrtc/v4 v4.2.9
 	github.com/prometheus/client_golang v1.23.2
