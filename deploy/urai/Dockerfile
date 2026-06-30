@@ -21,7 +21,29 @@ WORKDIR /app
 RUN apk upgrade --no-cache && \
     apk add --no-cache gcc musl-dev sqlite-dev binutils binutils-gold
 
-ENV CGO_ENABLED=1 GOOS=linux
+ENV CGO_ENABLED=1 GOOS=linux GOFLAGS=-mod=mod
+
+# Cache Go module downloads separately from source. These layers are only
+# invalidated when go.mod/go.sum files change, not on source edits.
+COPY core/go.mod core/go.sum ./core/
+COPY framework/go.mod framework/go.sum ./framework/
+COPY transports/go.mod transports/go.sum ./transports/
+COPY cli/go.mod cli/go.sum ./cli/
+COPY plugins/compat/go.mod plugins/compat/go.sum ./plugins/compat/
+COPY plugins/governance/go.mod plugins/governance/go.sum ./plugins/governance/
+COPY plugins/jsonparser/go.mod plugins/jsonparser/go.sum ./plugins/jsonparser/
+COPY plugins/logging/go.mod plugins/logging/go.sum ./plugins/logging/
+COPY plugins/maxim/go.mod plugins/maxim/go.sum ./plugins/maxim/
+COPY plugins/mocker/go.mod plugins/mocker/go.sum ./plugins/mocker/
+COPY plugins/otel/go.mod plugins/otel/go.sum ./plugins/otel/
+COPY plugins/prompts/go.mod plugins/prompts/go.sum ./plugins/prompts/
+COPY plugins/semanticcache/go.mod plugins/semanticcache/go.sum ./plugins/semanticcache/
+COPY plugins/telemetry/go.mod plugins/telemetry/go.sum ./plugins/telemetry/
+COPY plugins/urai/go.mod plugins/urai/go.sum ./plugins/urai/
+
+RUN go work init && \
+    go work use ./core ./framework ./transports ./cli ./plugins/* && \
+    go mod download
 
 # Build bifrost-http from local source so the urai patches in core/,
 # framework/, and plugins/ are compiled in, instead of the published proxy
@@ -29,17 +51,10 @@ ENV CGO_ENABLED=1 GOOS=linux
 COPY . .
 COPY --from=ui-builder /app/out ./transports/bifrost-http/ui
 
-# The dev go.work is gitignored and excluded by .dockerignore (local-only), so
-# recreate an equivalent Go workspace here: core, framework, transports, cli
-# and every plugin. go.work.sum is unnecessary -- each module's own go.sum
-# covers external dependency checksums; go build fetches them on demand.
-RUN go work init && \
-    go work use ./core ./framework ./transports ./cli ./plugins/*
-
 ARG VERSION=urai
 RUN go build \
     -ldflags="-w -s -X main.Version=v${VERSION} -extldflags '-static'" \
-    -a -trimpath \
+    -trimpath \
     -tags "sqlite_static" \
     -o /app/main \
     ./transports/bifrost-http
