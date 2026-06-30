@@ -21,7 +21,7 @@ WORKDIR /app
 RUN apk upgrade --no-cache && \
     apk add --no-cache gcc musl-dev sqlite-dev binutils binutils-gold
 
-ENV CGO_ENABLED=1 GOOS=linux GOFLAGS=-mod=mod
+ENV CGO_ENABLED=1 GOOS=linux
 
 # Cache Go module downloads separately from source. These layers are only
 # invalidated when go.mod/go.sum files change, not on source edits.
