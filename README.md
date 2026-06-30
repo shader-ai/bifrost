@@ -275,6 +275,40 @@ We welcome contributions of all kinds! See our [Contributing Guide](https://docs
 
 For development requirements and build instructions, see our [Development Setup Guide](https://docs.getbifrost.ai/contributing/setting-up-repo#development-environment-setup).
 
+### Running locally for development
+
+**Recommended — full stack with hot reload (UI + API):**
+
+```bash
+# From the repo root
+make dev APP_DIR=./deploy/urai
+```
+
+This installs dependencies, initialises the Go workspace, then starts the UI dev server and the HTTP transport together via [air](https://github.com/air-verse/air). Any `.go` file change triggers an automatic rebuild.
+
+**Transport only (no UI), with hot reload:**
+
+```bash
+cd transports/bifrost-http
+BIFROST_UI_DEV=true air -c .air.toml -- \
+  -host localhost \
+  -port 8080 \
+  -app-dir ../../deploy/urai
+```
+
+`air` watches the whole repo root (configured in `.air.toml`) and rebuilds on every `.go` change. The `--` separator passes flags directly to the compiled binary.
+
+**One-shot run (no hot reload):**
+
+```bash
+cd transports/bifrost-http
+go run . -host localhost -port 8080 -app-dir ../../deploy/urai
+```
+
+Use this for a quick smoke-test. `go run .` compiles and starts the server once; you must restart manually after any code change.
+
+> **Note:** `air` must be installed (`make install-air` or `go install github.com/air-verse/air@latest`) before using the hot-reload variants.
+
 ---
 
 ## License

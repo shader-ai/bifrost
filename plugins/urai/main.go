@@ -30,6 +30,9 @@ const ctxKeyUsageRowID schemas.BifrostContextKey = "urai-usage-row-id"
 // ctxKeyExtractedPrompt stores the user-role prompt text stashed in PreLLMHook.
 const ctxKeyExtractedPrompt schemas.BifrostContextKey = "urai-extracted-prompt"
 
+// ctxKeyExtractedLLMInput stores the serialized full messages[] payload for audit/confidentiality.
+const ctxKeyExtractedLLMInput schemas.BifrostContextKey = "urai-extracted-llm-input"
+
 // UraiPlugin implements schemas.BasePlugin + schemas.LLMPlugin + schemas.HTTPTransportPlugin.
 type UraiPlugin struct {
 	cfg       Config
@@ -216,9 +219,12 @@ func (p *UraiPlugin) PreLLMHook(ctx *schemas.BifrostContext, req *schemas.Bifros
 		}
 	}
 
-	// 6. Canonicalize model and inject provider key.
+	// 6. Inject provider key. Keep bare modelCode on the request — the HTTP handler
+	// already resolved Provider separately; upstream APIs (OpenAI, etc.) reject
+	// prefixed IDs like "openai/gpt-4o-mini".
 	canonical := canonicalizeModel(cred.UpstreamProvider, modelCode)
-	setRequestModel(req, canonical)
+	setRequestModel(req, modelCode)
+	setRequestProvider(req, cred.UpstreamProvider)
 	ctx.SetValue(schemas.BifrostContextKeyPassthroughProviderKey, cred.RawAPIKey)
 
 	// 7. Stash extracted prompt for usage recording and governance.
@@ -228,6 +234,12 @@ func (p *UraiPlugin) PreLLMHook(ctx *schemas.BifrostContext, req *schemas.Bifros
 		if p.governance != nil {
 			correlationID := getCorrelationID(ctx)
 			go p.runGovernanceScan(correlationID, auth.TenantID, canonical, promptText)
+		}
+	}
+
+	if req.ChatRequest != nil {
+		if llmInput := serializeLLMInput(req.ChatRequest.Input); llmInput != "" {
+			ctx.SetValue(ctxKeyExtractedLLMInput, llmInput)
 		}
 	}
 
@@ -241,8 +253,7 @@ func (p *UraiPlugin) PreLLMHook(ctx *schemas.BifrostContext, req *schemas.Bifros
 // PostLLMHook writes the gateway_request_log row and triggers async confidentiality.
 // For streaming responses it waits for the final chunk before writing.
 func (p *UraiPlugin) PostLLMHook(ctx *schemas.BifrostContext, result *schemas.BifrostResponse, bifrostErr *schemas.BifrostError) (*schemas.BifrostResponse, *schemas.BifrostError, error) {
-	// Only record on final chunk (non-streaming or last streaming chunk).
-	if !isFinalChunk(ctx) {
+	if !shouldRecordUsage(ctx, result, bifrostErr) {
 		return result, bifrostErr, nil
 	}
 
@@ -284,7 +295,9 @@ func (p *UraiPlugin) triggerGoConfidentialityAsync(rowID uuid.UUID) {
 	db := p.db
 	logger := p.logger
 	go func() {
-		if err := eng.AnalyzeGatewayRequest(p.ctx, db, rowID); err != nil && logger != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if err := eng.AnalyzeGatewayRequest(ctx, db, rowID); err != nil && logger != nil {
 			logger.Warn("urai: go confidentiality failed for row %s: %v", rowID, err)
 		}
 	}()
@@ -352,6 +365,11 @@ func (p *UraiPlugin) buildUsageRow(
 		promptStr = &pt
 	}
 
+	var llmInputStr *string
+	if li, ok := ctx.Value(ctxKeyExtractedLLMInput).(string); ok && li != "" {
+		llmInputStr = &li
+	}
+
 	apiKeyID := &auth.APIKeyID
 	return dbGatewayRequestLog{
 		ID:               rowID,
@@ -371,6 +389,7 @@ func (p *UraiPlugin) buildUsageRow(
 		ErrorType:        errType,
 		ErrorMessage:     errMsg,
 		Prompt:           promptStr,
+		LLMInput:         llmInputStr,
 		RequestTimestamp: startTime.UTC(),
 	}
 }
@@ -439,6 +458,21 @@ func setRequestModel(req *schemas.BifrostRequest, model string) {
 	}
 	if req.ResponsesRequest != nil {
 		req.ResponsesRequest.Model = model
+	}
+}
+
+// setRequestProvider aligns the Bifrost provider with the resolved upstream credential
+// (e.g. URAI "google" credentials route to the gemini provider).
+func setRequestProvider(req *schemas.BifrostRequest, upstreamProvider string) {
+	provider := schemas.ModelProvider(strings.ToLower(strings.TrimSpace(upstreamProvider)))
+	if provider == "aws" {
+		provider = schemas.Bedrock
+	}
+	if req.ChatRequest != nil {
+		req.ChatRequest.Provider = provider
+	}
+	if req.ResponsesRequest != nil {
+		req.ResponsesRequest.Provider = provider
 	}
 }
 

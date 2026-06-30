@@ -3,6 +3,7 @@ package urai
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all configuration for the URAI plugin.
@@ -112,8 +113,8 @@ func ConfigFromEnv() Config {
 		GrokAPIKey:        os.Getenv("GROK_API_KEY"),
 		GrokBaseURL:       getEnvOrDefault("GROK_BASE_URL", "https://api.x.ai/v1"),
 
-		ConfidentialDetectorModel:  getEnvOrDefault("CONFIDENTIAL_DETECTOR", "google/gemma-3-12b-it:free"),
-		ConfidentialTokenizerModel: getEnvOrDefault("CONFIDENTIAL_TOKENIZER", "google/gemma-3-27b-it:free"),
+		ConfidentialDetectorModel:  detectorModelFromEnv(),
+		ConfidentialTokenizerModel: tokenizerModelFromEnv(),
 		ConfidentialThreshold:      threshold,
 		ChunkSize:                  chunkSize,
 		ChunkOverlap:               chunkOverlap,
@@ -126,4 +127,25 @@ func getEnvOrDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// detectorModelFromEnv picks a model compatible with the configured AI_CLIENT.
+func detectorModelFromEnv() string {
+	if v := os.Getenv("CONFIDENTIAL_DETECTOR"); v != "" {
+		return v
+	}
+	if strings.ToLower(getEnvOrDefault("AI_CLIENT", "ollama")) == "ollama" {
+		return getEnvOrDefault("OLLAMA_MODEL", "gemma3:12b")
+	}
+	return "google/gemma-3-12b-it:free"
+}
+
+func tokenizerModelFromEnv() string {
+	if v := os.Getenv("CONFIDENTIAL_TOKENIZER"); v != "" {
+		return v
+	}
+	if strings.ToLower(getEnvOrDefault("AI_CLIENT", "ollama")) == "ollama" {
+		return getEnvOrDefault("OLLAMA_MODEL", "gemma3:12b")
+	}
+	return "google/gemma-3-27b-it:free"
 }

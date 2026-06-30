@@ -105,6 +105,7 @@ type dbGatewayRequestLog struct {
 	ErrorType        *string    `gorm:"column:error_type"`
 	ErrorMessage     *string    `gorm:"column:error_message"`
 	Prompt           *string    `gorm:"column:prompt"`
+	LLMInput         *string    `gorm:"column:llm_input"`
 	RequestTimestamp time.Time  `gorm:"column:request_timestamp"`
 }
 

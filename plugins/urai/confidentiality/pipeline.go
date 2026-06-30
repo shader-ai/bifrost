@@ -239,6 +239,7 @@ type dbGatewayRequestLogRow struct {
 	ID                    uuid.UUID        `gorm:"column:id"`
 	TenantID              string           `gorm:"column:tenant_id"`
 	Prompt                *string          `gorm:"column:prompt"`
+	LLMInput              *string          `gorm:"column:llm_input"`
 	ConfidentialityResult *json.RawMessage `gorm:"column:confidentiality_result;serializer:json"`
 }
 
@@ -251,22 +252,26 @@ func (e *Engine) AnalyzeGatewayRequest(ctx context.Context, db *gorm.DB, rowID u
 	// Fetch the usage row.
 	var row dbGatewayRequestLogRow
 	if err := db.WithContext(ctx).
-		Select("id, tenant_id, prompt").
+		Select("id, tenant_id, prompt, llm_input").
 		Where("id = ?", rowID).
 		First(&row).Error; err != nil {
 		return fmt.Errorf("confidentiality: fetch row %s: %w", rowID, err)
 	}
 
-	text := ""
-	if row.Prompt != nil {
-		text = strings.TrimSpace(*row.Prompt)
-	}
+	text := textForDetection(row.LLMInput, row.Prompt)
 
 	emptyResult := map[string]interface{}{
 		"is_confidential":   false,
 		"confidence_score":  0.0,
 		"document_category": "N/A",
-		"reasoning":         "empty_extracted_prompt",
+		"reasoning":         "empty_llm_input",
+	}
+
+	failedResult := map[string]interface{}{
+		"is_confidential":   false,
+		"confidence_score":  0.0,
+		"document_category": "N/A",
+		"reasoning":         "detection_failed",
 	}
 
 	var finalResult map[string]interface{}
@@ -276,13 +281,18 @@ func (e *Engine) AnalyzeGatewayRequest(ctx context.Context, db *gorm.DB, rowID u
 	} else {
 		textResult, err := e.AnalyzeText(ctx, text)
 		if err != nil || textResult == nil {
-			finalResult = emptyResult
+			finalResult = failedResult
 		} else {
 			isConf := e.ApplyThresholdFlag(textResult)
 			if isConf {
 				TokenizerSensitiveItemsAndEnrichResult(ctx, e.Client, e.TokenizerModel, e.TokenizerPrompt, text, textResult)
 			}
 			finalResult = textResult
+		}
+		// Regex fallback: catch payment cards / credentials even when the LLM detector is down.
+		finalResult = mergePatternScan(finalResult, text)
+		if e.ApplyThresholdFlag(finalResult) {
+			TokenizerSensitiveItemsAndEnrichResult(ctx, e.Client, e.TokenizerModel, e.TokenizerPrompt, text, finalResult)
 		}
 	}
 
